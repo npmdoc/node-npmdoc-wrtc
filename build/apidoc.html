@@ -1,0 +1,322 @@
+<div class="apidocDiv">
+<style>
+/*csslint
+*/
+.apidocDiv {
+    background: #fff;
+    font-family: Arial, Helvetica, sans-serif;
+}
+.apidocDiv a[href] {
+    color: #33f;
+    font-weight: bold;
+    text-decoration: none;
+}
+.apidocDiv a[href]:hover {
+    text-decoration: underline;
+}
+.apidocCodeCommentSpan {
+    background: #bbf;
+    color: #000;
+    display: block;
+}
+.apidocCodeKeywordSpan {
+    color: #d00;
+    font-weight: bold;
+}
+.apidocCodePre {
+    background: #eef;
+    border: 1px solid;
+    color: #777;
+    padding: 5px;
+    white-space: pre-wrap;
+}
+.apidocFooterDiv {
+    margin-top: 20px;
+    text-align: center;
+}
+.apidocModuleLi {
+    margin-top: 10px;
+}
+.apidocSectionDiv {
+    border-top: 1px solid;
+    margin-top: 20px;
+}
+.apidocSignatureSpan {
+    color: #777;
+    font-weight: bold;
+}
+</style>
+<h1>api documentation for
+    <a
+
+        href="http://js-platform.github.io/node-webrtc/"
+
+    >wrtc (v0.0.61)</a>
+</h1>
+<h4>Standards-compliant WebRTC implementation for Node</h4>
+<div class="apidocSectionDiv"><a
+    href="#apidoc.tableOfContents"
+    id="apidoc.tableOfContents"
+><h1>table of contents</h1></a><ol>
+
+    <li class="apidocModuleLi"><a href="#apidoc.module.wrtc">module wrtc</a><ol>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.wrtc.RTCIceCandidate">
+            function <span class="apidocSignatureSpan">wrtc.</span>RTCIceCandidate
+            <span class="apidocSignatureSpan">(candidateInitDict)</span>
+            </a>
+
+        </li>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.wrtc.RTCPeerConnection">
+            function <span class="apidocSignatureSpan">wrtc.</span>RTCPeerConnection
+            <span class="apidocSignatureSpan">(configuration, constraints)</span>
+            </a>
+
+        </li>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.wrtc.RTCSessionDescription">
+            function <span class="apidocSignatureSpan">wrtc.</span>RTCSessionDescription
+            <span class="apidocSignatureSpan">(descriptionInitDict)</span>
+            </a>
+
+        </li>
+
+    </ol></li>
+
+</ol></div>
+
+<div class="apidocSectionDiv">
+<h1><a href="#apidoc.module.wrtc" id="apidoc.module.wrtc">module wrtc</a></h1>
+
+
+    <h2>
+        <a href="#apidoc.element.wrtc.RTCIceCandidate" id="apidoc.element.wrtc.RTCIceCandidate">
+        function <span class="apidocSignatureSpan">wrtc.</span>RTCIceCandidate
+        <span class="apidocSignatureSpan">(candidateInitDict)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">function RTCIceCandidate(candidateInitDict) {
+  &#x27;use strict&#x27;;
+  if(candidateInitDict) {
+    this.candidate     = candidateInitDict.candidate;
+    this.sdpMid        = candidateInitDict.sdpMid;
+    this.sdpMLineIndex = candidateInitDict.sdpMLineIndex;
+  }
+}</pre></li>
+    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    </ul>
+
+
+
+    <h2>
+        <a href="#apidoc.element.wrtc.RTCPeerConnection" id="apidoc.element.wrtc.RTCPeerConnection">
+        function <span class="apidocSignatureSpan">wrtc.</span>RTCPeerConnection
+        <span class="apidocSignatureSpan">(configuration, constraints)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">function RTCPeerConnection(configuration, constraints) {
+  &#x27;use strict&#x27;;
+  var that = this
+    , pc = new _webrtc.PeerConnection(configuration, constraints)
+    , localType = null
+    , remoteType = null
+    , queue = []
+    , pending = null
+    , dataChannels = {};  // open data channels, indexed by label
+
+  EventTarget.call(this);
+
+  function checkClosed() {
+//    if(this._closed) {
+//      throw new Error(&#x27;Peer is closed&#x27;);
+//    }
+  }
+
+  function executeNext() {
+    if(queue.length &#x3e; 0) {
+      var obj = queue.shift();
+
+      pc[obj.func].apply(pc, obj.args);
+
+      if(obj.wait)
+      {
+        pending = obj;
+      } else {
+        executeNext();
+      }
+    } else {
+      pending = null;
+    }
+  }
+
+  function queueOrRun(obj) {
+    checkClosed();
+
+    if(null === pending) {
+      pc[obj.func].apply(pc, obj.args);
+
+      if(obj.wait) {
+        pending = obj;
+      }
+    } else {
+      queue.push(obj);
+    }
+  }
+
+  function runImmediately(obj) {
+    checkClosed();
+
+    return pc[obj.func].apply(pc, obj.args);
+  }
+
+  //
+  // Attach events to the native PeerConnection object
+  //
+
+  pc.onerror = function onerror() {
+    if(pending &#x26;&#x26; pending.onError) {
+      pending.onError.apply(that, arguments);
+    }
+
+    executeNext();
+  };
+
+  pc.onsuccess = function onsuccess() {
+    if(pending &#x26;&#x26; pending.onSuccess) {
+      pending.onSuccess.apply(that, arguments);
+    }
+
+    executeNext();
+  };
+
+  pc.onicecandidate = function onicecandidate(candidate, sdpMid, sdpMLineIndex) {
+    var icecandidate = new RTCIceCandidate({
+      candidate:     candidate,
+      sdpMid:        sdpMid,
+      sdpMLineIndex: sdpMLineIndex
+    });
+
+    that.dispatchEvent(new RTCPeerConnectionIceEvent(&#x27;icecandidate&#x27;, {candidate: icecandidate}));
+  };
+
+  pc.onsignalingstatechange = function onsignalingstatechange(state) {
+    var stateString = that.RTCSignalingStates[state];
+
+    if(&#x27;closed&#x27; === stateString) {
+      Object.keys(dataChannels).forEach(function(label) {
+        dataChannels[label].shutdown();
+
+        delete dataChannels[label];
+      });
+    }
+
+    that.dispatchEvent({type: &#x27;signalingstatechange&#x27;});
+  };
+
+  pc.oniceconnectionstatechange = function oniceconnectionstatechange(state) {
+    that.dispatchEvent({type: &#x27;iceconnectionstatechange&#x27;});
+  };
+
+  pc.onicegatheringstatechange = function onicegatheringstatechange(state) {
+    that.dispatchEvent({type: &#x27;icegatheringstatechange&#x27;});
+
+    // if we have completed gathering candidates, trigger a null candidate event
+    if (that.RTCIceGatheringStates[state] === &#x27;complete&#x27;) {
+      that.dispatchEvent(new RTCPeerConnectionIceEvent(&#x27;icecandidate&#x27;, {candidate: null}));
+    }
+  };
+
+  // [ToDo] onnegotiationneeded
+
+  pc.ondatachannel = function ondatachannel(internalDC) {
+    dataChannels[internalDC.label] = internalDC;
+
+    var dc = new RTCDataChannel(internalDC);
+
+    that.dispatchEvent(new RTCDataChannelEvent(&#x27;datachannel&#x27;, {channel: dc}));
+  };
+
+  //
+  // PeerConnection properties &#x26; attributes
+  //
+
+  Object.defineProperties(this, {
+    &#x27;localDescription&#x27;: {
+      get: function getLocalDescription() {
+        var sdp = pc.localDescription;
+        if(!sdp) {
+          return null;
+        }
+        return new RTCSessionDescription({ type: localType, sdp: sdp });
+      }
+    },
+    &#x27;remoteDescription&#x27;: {
+      get: function getRemoteDescription() {
+        var sdp = pc.remoteDescription;
+        if(!sdp) {
+          return null;
+        }
+        return new RTCSessionDescription({ type: remoteType, sdp: sdp });
+      }
+    },
+    &#x27;signalingState&#x27;: {
+      get: function getSignalingState() {
+        var state = pc.signalingState;
+        return this.RTCSignalingStates[state];
+      }
+    },
+    &#x27;readyState&#x27;: {
+      get: function getReadyState() {
+        return pc.getReadyState();
+      }
+    },
+    &#x27;iceGatheringState&#x27;: {
+      get: function getIceGatheringState() {
+        var state = pc.iceGatheringState;
+        return this.RTCIceGatheringStates[state];
+      }
+    },
+    &#x27;iceConnectionState&#x27;: {
+      get: function getIceConnectionState() {
+        var state = pc.iceConnectionState;
+        return t ...</pre></li>
+    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    </ul>
+
+
+
+    <h2>
+        <a href="#apidoc.element.wrtc.RTCSessionDescription" id="apidoc.element.wrtc.RTCSessionDescription">
+        function <span class="apidocSignatureSpan">wrtc.</span>RTCSessionDescription
+        <span class="apidocSignatureSpan">(descriptionInitDict)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">function RTCSessionDescription(descriptionInitDict) {
+  &#x27;use strict&#x27;;
+  if(descriptionInitDict) {
+    this.type = descriptionInitDict.type;
+    this.sdp = descriptionInitDict.sdp;
+  }
+}</pre></li>
+    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    </ul>
+
+
+</div>
+
+<div class="apidocFooterDiv">
+    [ this document was created with
+    <a href="https://github.com/kaizhu256/node-utility2" target="_blank">utility2</a>
+    ]
+</div>
+</div>
